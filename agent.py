@@ -112,11 +112,14 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
             func_name = tool_call.function.name
             func_args = json.loads(tool_call.function.arguments)
             func = TOOL_FUNCTIONS.get(func_name)
+            print(f"[TOOL CALL] {func_name} args={func_args}", flush=True)
             try:
                 result = func(**func_args) if func else f"פונקציה לא נמצאה: {func_name}"
+                print(f"[TOOL RESULT] {func_name}: {result}", flush=True)
                 logger.info(f"Tool {func_name} result: {result}")
             except Exception as e:
                 result = f"שגיאה: {str(e)}"
+                print(f"[TOOL ERROR] {func_name}: {e}", flush=True)
                 logger.error(f"Tool {func_name} error: {e}")
 
             messages.append({
