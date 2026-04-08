@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: afchad-whatsapp
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GREEN_API_URL
+        value: https://api.green-api.com
+      - key: GREEN_API_INSTANCE
+        value: 7107581339
+      - key: GREEN_API_TOKEN
+        value: cc56742392bf42da8dea1ebf9f39c33082bb17d254fe4deba8
+      - key: GOOGLE_API_KEY
+        value: AIzaSyBJ0jB0pzboIQ7BqD-N7Lnnq5XeCfZj7Zs
+      - key: LLM_MODEL
+        value: gemini-2.0-flash
+      - key: MAX_HISTORY
+        value: "20"
+      - key: DATABASE_PATH
+        value: /data/conversations.db
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
