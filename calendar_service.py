@@ -6,18 +6,33 @@ Provides functions to create, list, update, and delete calendar events.
 import os
 import json
 import datetime
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request as GoogleAuthRequest
-from googleapiclient.discovery import build
+
+CALENDAR_AVAILABLE = False
+try:
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+    from googleapiclient.discovery import build
+    CALENDAR_AVAILABLE = True
+except ImportError:
+    pass
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 TOKEN_PATH = os.path.join(os.path.dirname(__file__), "token.json")
 CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "credentials.json")
 
 
+def _check_available():
+    """Check if calendar is available."""
+    if not CALENDAR_AVAILABLE:
+        raise RuntimeError("חיבור היומן לא זמין כרגע - חסרות חבילות נדרשות")
+    if not os.path.exists(CREDENTIALS_PATH) or not os.path.exists(TOKEN_PATH):
+        raise RuntimeError("חיבור היומן לא זמין כרגע - צריך להגדיר אימות מקומית קודם")
+
+
 def _get_calendar_service():
     """Get authenticated Google Calendar service."""
+    _check_available()
     creds = None
     if os.path.exists(TOKEN_PATH):
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
