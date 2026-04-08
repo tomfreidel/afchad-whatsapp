@@ -4,10 +4,13 @@ Handles message processing, conversation history, and LLM calls with Google Cale
 """
 
 import json
+import logging
 from config import settings
 from database import get_history, save_message
 from openai import OpenAI
 from calendar_service import list_events, create_event, update_event, delete_event
+
+logger = logging.getLogger("אפחד")
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -111,8 +114,10 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
             func = TOOL_FUNCTIONS.get(func_name)
             try:
                 result = func(**func_args) if func else f"פונקציה לא נמצאה: {func_name}"
+                logger.info(f"Tool {func_name} result: {result}")
             except Exception as e:
                 result = f"שגיאה: {str(e)}"
+                logger.error(f"Tool {func_name} error: {e}")
 
             messages.append({
                 "role": "tool",
