@@ -17,6 +17,8 @@ class Settings:
     # LLM
     LLM_MODEL: str = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
     # Agent
     SYSTEM_PROMPT: str = os.getenv("SYSTEM_PROMPT", """אתה אפחד, העוזר האישי של טום. אתה מדבר בעברית ברורה, בגובה העיניים, בסגנון קליל, חברותי ומצחיק.
