@@ -23,7 +23,7 @@ CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "credentials.json")
 
 
 def _get_calendar_service():
-    """Get authenticated Google Calendar service."""
+    """Get authenticated Google Calendar service. Auto-refreshes token."""
     if not CALENDAR_AVAILABLE:
         raise RuntimeError("חיבור היומן לא זמין כרגע - חסרות חבילות נדרשות")
 
@@ -39,15 +39,18 @@ def _get_calendar_service():
     if not creds:
         raise RuntimeError("חיבור היומן לא זמין כרגע - צריך להגדיר אימות קודם")
 
-    if not creds.valid:
-        if creds.expired and creds.refresh_token:
+    # Always refresh if expired or about to expire - refresh_token never expires
+    if not creds.valid or creds.expired:
+        if creds.refresh_token:
             creds.refresh(GoogleAuthRequest())
-            # Save refreshed token back to file if local
-            if os.path.exists(TOKEN_PATH):
+            # Save locally if possible
+            try:
                 with open(TOKEN_PATH, "w") as token:
                     token.write(creds.to_json())
+            except Exception:
+                pass  # On Render, filesystem may be read-only - that's ok
         else:
-            raise RuntimeError("חיבור היומן לא זמין כרגע - הטוקן פג תוקף")
+            raise RuntimeError("חיבור היומן לא זמין - צריך לחדש אימות")
 
     return build("calendar", "v3", credentials=creds)
 
