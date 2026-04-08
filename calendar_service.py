@@ -22,28 +22,33 @@ TOKEN_PATH = os.path.join(os.path.dirname(__file__), "token.json")
 CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), "credentials.json")
 
 
-def _check_available():
-    """Check if calendar is available."""
-    if not CALENDAR_AVAILABLE:
-        raise RuntimeError("חיבור היומן לא זמין כרגע - חסרות חבילות נדרשות")
-    if not os.path.exists(CREDENTIALS_PATH) or not os.path.exists(TOKEN_PATH):
-        raise RuntimeError("חיבור היומן לא זמין כרגע - צריך להגדיר אימות מקומית קודם")
-
-
 def _get_calendar_service():
     """Get authenticated Google Calendar service."""
-    _check_available()
+    if not CALENDAR_AVAILABLE:
+        raise RuntimeError("חיבור היומן לא זמין כרגע - חסרות חבילות נדרשות")
+
     creds = None
-    if os.path.exists(TOKEN_PATH):
+
+    # Try loading from environment variable first (for Render deployment)
+    token_json = os.getenv("GOOGLE_CALENDAR_TOKEN")
+    if token_json:
+        creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+    elif os.path.exists(TOKEN_PATH):
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
+
+    if not creds:
+        raise RuntimeError("חיבור היומן לא זמין כרגע - צריך להגדיר אימות קודם")
+
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
             creds.refresh(GoogleAuthRequest())
+            # Save refreshed token back to file if local
+            if os.path.exists(TOKEN_PATH):
+                with open(TOKEN_PATH, "w") as token:
+                    token.write(creds.to_json())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_PATH, "w") as token:
-            token.write(creds.to_json())
+            raise RuntimeError("חיבור היומן לא זמין כרגע - הטוקן פג תוקף")
+
     return build("calendar", "v3", credentials=creds)
 
 
