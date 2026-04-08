@@ -5,6 +5,8 @@ Handles message processing, conversation history, and LLM calls with Google Cale
 
 import json
 import logging
+from datetime import datetime
+import pytz
 from config import settings
 from database import get_history, save_message
 from openai import OpenAI
@@ -92,9 +94,15 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
 
     history = get_history(phone, limit=settings.MAX_HISTORY)
 
+    # Add current date/time to every message so model knows "today"/"tomorrow"
+    israel_tz = pytz.timezone("Asia/Jerusalem")
+    now = datetime.now(israel_tz)
+    date_prefix = f"[תאריך ושעה נוכחיים: {now.strftime('%A %d/%m/%Y %H:%M')} שעון ישראל]\n"
+    message_with_date = date_prefix + message
+
     messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}]
     messages.extend(history)
-    messages.append({"role": "user", "content": message})
+    messages.append({"role": "user", "content": message_with_date})
 
     response = client.chat.completions.create(
         model=settings.LLM_MODEL,
