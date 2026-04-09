@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 import pytz
 from config import settings
-from database import get_history, save_message
+from database import get_history, save_message, save_note, get_notes, delete_note
 from openai import OpenAI
 from calendar_service import list_events, create_event, update_event, delete_event
 
@@ -43,7 +43,8 @@ calendar_tools = [
                     "start_time": {"type": "string", "description": "שעת התחלה ISO, למשל 2026-04-09T10:00:00"},
                     "end_time": {"type": "string", "description": "שעת סיום ISO"},
                     "description": {"type": "string", "description": "תיאור אופציונלי"},
-                    "color": {"type": "string", "description": "צבע האירוע בעברית או אנגלית (כחול, ירוק, אדום, כתום, ורוד, סגול, צהוב, תכלת)"}
+                    "color": {"type": "string", "description": "צבע האירוע בעברית או אנגלית (כחול, ירוק, אדום, כתום, ורוד, סגול, צהוב, תכלת)"},
+                    "attendees": {"type": "string", "description": "אימיילים של מוזמנים מופרדים בפסיק, למשל: a@gmail.com,b@gmail.com"}
                 },
                 "required": ["summary", "start_time", "end_time"]
             }
@@ -69,6 +70,45 @@ calendar_tools = [
     {
         "type": "function",
         "function": {
+            "name": "save_note",
+            "description": "שמירת מידע חשוב לזיכרון לטווח ארוך. השתמש בזה כשהמשתמש מבקש לזכור משהו, שומר רעיון, משימה, או כל מידע שצריך להישאר לאורך זמן.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "content": {"type": "string", "description": "המידע לשמירה"}
+                },
+                "required": ["content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_notes",
+            "description": "קבלת כל הפתקים השמורים בזיכרון. השתמש בזה כשהמשתמש שואל מה זכרת, מה הרעיונות שלו, מה המשימות, וכו'.",
+            "parameters": {
+                "type": "object",
+                "properties": {}
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_note",
+            "description": "מחיקת פתק מהזיכרון לפי מספר סידורי (1-based).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "note_index": {"type": "integer", "description": "מספר הפתק למחיקה"}
+                },
+                "required": ["note_index"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delete_event",
             "description": "מחיקת אירוע מהיומן לפי מזהה",
             "parameters": {
@@ -82,12 +122,23 @@ calendar_tools = [
     }
 ]
 
-TOOL_FUNCTIONS = {
-    "list_events": list_events,
-    "create_event": create_event,
-    "update_event": update_event,
-    "delete_event": delete_event,
-}
+def _save_note_for_phone(phone: str):
+    def _save(content: str) -> str:
+        return save_note(phone, content)
+    return _save
+
+def _get_notes_for_phone(phone: str):
+    def _get() -> str:
+        notes = get_notes(phone)
+        if not notes:
+            return "אין פתקים שמורים עדיין."
+        return "\n".join(f"{i+1}. {n}" for i, n in enumerate(notes))
+    return _get
+
+def _delete_note_for_phone(phone: str):
+    def _delete(note_index: int) -> str:
+        return delete_note(phone, note_index)
+    return _delete
 
 
 def get_response(phone: str, message: str, sender_name: str = "") -> str:
@@ -104,6 +155,16 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
     messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}]
     messages.extend(history)
     messages.append({"role": "user", "content": message_with_date})
+
+    TOOL_FUNCTIONS = {
+        "list_events": list_events,
+        "create_event": create_event,
+        "update_event": update_event,
+        "delete_event": delete_event,
+        "save_note": _save_note_for_phone(phone),
+        "get_notes": _get_notes_for_phone(phone),
+        "delete_note": _delete_note_for_phone(phone),
+    }
 
     response = client.chat.completions.create(
         model=settings.LLM_MODEL,
