@@ -129,27 +129,26 @@ async def send_whatsapp_message(chat_id: str, message: str):
 
 @app.post("/cron/reminder")
 async def cron_reminder(request: Request):
-    """Called by cron-job.org to send proactive reminders to Tom."""
+    """Called by cron-job.org to send proactive reminders to Tom.
+    Accepts optional JSON body: {"message": "custom text"}
+    If no message provided, sends nothing (use explicit messages per cron job).
+    """
     # Verify secret token
     secret = request.headers.get("X-Cron-Secret", "")
     if not settings.CRON_SECRET or secret != settings.CRON_SECRET:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
 
-    israel_tz = pytz.timezone("Asia/Jerusalem")
-    now = datetime.now(israel_tz)
-    weekday = now.weekday()  # 0=Monday, 4=Friday, 6=Sunday
-
-    chat_id = f"{settings.TOM_PHONE}@c.us"
-    message = None
-
-    if weekday == 4:  # Friday
-        message = "אחוי, שישי היום 🕍 דיברת עם סבתא? אם לא - עכשיו הזמן!"
-    elif weekday == 6:  # Sunday
-        message = "יא מלך, שבוע חדש מתחיל 💪 דיברת עם ההורים השבוע? אם לא - תקים אותם היום!"
+    # Try to get custom message from body
+    try:
+        body = await request.json()
+        message = body.get("message", "")
+    except Exception:
+        message = ""
 
     if not message:
-        return {"ok": True, "skipped": "no reminder today"}
+        return {"ok": True, "skipped": "no message"}
 
+    chat_id = f"{settings.TOM_PHONE}@c.us"
     try:
         await send_whatsapp_message(chat_id, message)
         logger.info(f"Cron reminder sent: {message}")
