@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 import pytz
 from config import settings
-from database import get_history, save_message, save_note, get_notes, delete_note
+from database import get_history, save_message, save_note, get_notes, delete_note, complete_note
 from openai import OpenAI
 from calendar_service import list_events, create_event, update_event, delete_event
 
@@ -109,6 +109,20 @@ calendar_tools = [
     {
         "type": "function",
         "function": {
+            "name": "complete_task",
+            "description": "סימון משימה/פתק כבוצע (✅). השתמש בזה כשהמשתמש אומר שסיים משימה, שגמר עם משהו, שעשה את זה.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "note_index": {"type": "integer", "description": "מספר המשימה לסימון (1-based)"}
+                },
+                "required": ["note_index"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delete_event",
             "description": "מחיקת אירוע מהיומן לפי מזהה",
             "parameters": {
@@ -140,6 +154,11 @@ def _delete_note_for_phone(phone: str):
         return delete_note(phone, note_index)
     return _delete
 
+def _complete_task_for_phone(phone: str):
+    def _complete(note_index: int) -> str:
+        return complete_note(phone, note_index)
+    return _complete
+
 
 def get_response(phone: str, message: str, sender_name: str = "") -> str:
     """Process a message and return an AI response."""
@@ -152,7 +171,22 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
     date_prefix = f"[תאריך ושעה נוכחיים: {now.strftime('%A %d/%m/%Y %H:%M')} שעון ישראל]\n"
     message_with_date = date_prefix + message
 
-    messages = [{"role": "system", "content": settings.SYSTEM_PROMPT}]
+    # Inject persistent notes/tasks into system prompt so model always "knows" them
+    notes = get_notes(phone)
+    if notes:
+        pending = [n for n in notes if not n.startswith("✅")]
+        done = [n for n in notes if n.startswith("✅")]
+        notes_block = "\n\n=== זיכרון שמור של טום ==="
+        if pending:
+            notes_block += "\nמשימות/רעיונות פתוחים:\n" + "\n".join(f"{i+1}. {n}" for i, n in enumerate(notes) if not n.startswith("✅"))
+        if done:
+            notes_block += "\nבוצע:\n" + "\n".join(f"- {n}" for n in done)
+        notes_block += "\n=== סוף זיכרון ==="
+        system_content = settings.SYSTEM_PROMPT + notes_block
+    else:
+        system_content = settings.SYSTEM_PROMPT
+
+    messages = [{"role": "system", "content": system_content}]
     messages.extend(history)
     messages.append({"role": "user", "content": message_with_date})
 
@@ -164,6 +198,7 @@ def get_response(phone: str, message: str, sender_name: str = "") -> str:
         "save_note": _save_note_for_phone(phone),
         "get_notes": _get_notes_for_phone(phone),
         "delete_note": _delete_note_for_phone(phone),
+        "complete_task": _complete_task_for_phone(phone),
     }
 
     response = client.chat.completions.create(

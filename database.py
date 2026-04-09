@@ -92,6 +92,26 @@ def delete_note(phone: str, note_index: int) -> str:
     return f"הערה מספר {note_index} נמחקה."
 
 
+def complete_note(phone: str, note_index: int) -> str:
+    """Mark a note as completed by prepending ✅ to its content."""
+    conn = _connect()
+    cursor = conn.execute(
+        "SELECT id, content FROM notes WHERE phone = ? ORDER BY timestamp ASC",
+        (phone,),
+    )
+    rows = cursor.fetchall()
+    if note_index < 1 or note_index > len(rows):
+        conn.close()
+        return f"לא נמצאה משימה מספר {note_index}"
+    note_id, content = rows[note_index - 1]
+    if not content.startswith("✅"):
+        new_content = "✅ " + content
+        conn.execute("UPDATE notes SET content = ? WHERE id = ?", (new_content, note_id))
+        conn.commit()
+    conn.close()
+    return f"בוצע! ✅ {content}"
+
+
 def save_message(phone: str, role: str, content: str):
     """Save a message to the database."""
     conn = _connect()
