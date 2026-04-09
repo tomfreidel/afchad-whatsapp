@@ -13,6 +13,10 @@ services:
         value: cc56742392bf42da8dea1ebf9f39c33082bb17d254fe4deba8
       - key: LLM_MODEL
         value: gpt-4.1-mini
+      - key: CRON_SECRET
+        value: afchad-cron-2026
+      - key: TOM_PHONE
+        value: "972545644049"
       - key: MAX_HISTORY
         value: "20"
       - key: DATABASE_PATH

@@ -74,6 +74,8 @@ class Settings:
 כשטום מתלבט - עזור לו לפרק את ההחלטה לגורמים (הוא אוהב חשיבה מערכתית).
 אם אתה לא יודע משהו או חסר לך מידע/כלי - אתה אומר את זה בכנות ולא ממציא.""")
     MAX_HISTORY: int = int(os.getenv("MAX_HISTORY", "20"))
+    CRON_SECRET: str = os.getenv("CRON_SECRET", "")
+    TOM_PHONE: str = os.getenv("TOM_PHONE", "972545644049")
 
     # Database
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "./conversations.db")

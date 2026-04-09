@@ -6,6 +6,8 @@ Webhook server that receives messages from Green API and responds using AI.
 import time
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime
+import pytz
 
 import httpx
 from fastapi import FastAPI, Request
@@ -123,6 +125,38 @@ async def send_whatsapp_message(chat_id: str, message: str):
         )
         response.raise_for_status()
         return response.json()
+
+
+@app.post("/cron/reminder")
+async def cron_reminder(request: Request):
+    """Called by cron-job.org to send proactive reminders to Tom."""
+    # Verify secret token
+    secret = request.headers.get("X-Cron-Secret", "")
+    if not settings.CRON_SECRET or secret != settings.CRON_SECRET:
+        return JSONResponse({"error": "unauthorized"}, status_code=401)
+
+    israel_tz = pytz.timezone("Asia/Jerusalem")
+    now = datetime.now(israel_tz)
+    weekday = now.weekday()  # 0=Monday, 4=Friday, 6=Sunday
+
+    chat_id = f"{settings.TOM_PHONE}@c.us"
+    message = None
+
+    if weekday == 4:  # Friday
+        message = "אחוי, שישי היום 🕍 דיברת עם סבתא? אם לא - עכשיו הזמן!"
+    elif weekday == 6:  # Sunday
+        message = "יא מלך, שבוע חדש מתחיל 💪 דיברת עם ההורים השבוע? אם לא - תקים אותם היום!"
+
+    if not message:
+        return {"ok": True, "skipped": "no reminder today"}
+
+    try:
+        await send_whatsapp_message(chat_id, message)
+        logger.info(f"Cron reminder sent: {message}")
+        return {"ok": True, "sent": message}
+    except Exception as e:
+        logger.error(f"Cron reminder failed: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 if __name__ == "__main__":
