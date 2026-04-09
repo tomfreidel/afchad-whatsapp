@@ -42,7 +42,8 @@ calendar_tools = [
                     "summary": {"type": "string", "description": "שם האירוע"},
                     "start_time": {"type": "string", "description": "שעת התחלה ISO, למשל 2026-04-09T10:00:00"},
                     "end_time": {"type": "string", "description": "שעת סיום ISO"},
-                    "description": {"type": "string", "description": "תיאור אופציונלי"}
+                    "description": {"type": "string", "description": "תיאור אופציונלי"},
+                    "color": {"type": "string", "description": "צבע האירוע בעברית או אנגלית (כחול, ירוק, אדום, כתום, ורוד, סגול, צהוב, תכלת)"}
                 },
                 "required": ["summary", "start_time", "end_time"]
             }

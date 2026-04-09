@@ -87,13 +87,27 @@ def list_events(date: str = None, max_results: int = 10) -> str:
     for event in events:
         start = event["start"].get("dateTime", event["start"].get("date"))
         summary = event.get("summary", "ללא כותרת")
-        lines.append(f"- {start}: {summary}")
+        event_id = event.get("id", "")
+        lines.append(f"- {start}: {summary} [event_id: {event_id}]")
     return "\n".join(lines)
 
 
-def create_event(summary: str, start_time: str, end_time: str, description: str = "") -> str:
+COLORS = {
+    "כחול": "9", "blue": "9",
+    "ירוק": "2", "green": "2",
+    "צהוב": "5", "yellow": "5",
+    "כתום": "6", "orange": "6",
+    "אדום": "11", "red": "11",
+    "ורוד": "4", "pink": "4",
+    "סגול": "3", "purple": "3",
+    "תכלת": "7", "teal": "7",
+}
+
+
+def create_event(summary: str, start_time: str, end_time: str, description: str = "", color: str = "") -> str:
     """Create a new calendar event.
     start_time and end_time should be ISO format (e.g., 2026-04-09T10:00:00).
+    color: optional color name in Hebrew or English (e.g., כחול, ירוק, אדום).
     """
     service = _get_calendar_service()
     event = {
@@ -103,6 +117,10 @@ def create_event(summary: str, start_time: str, end_time: str, description: str 
     }
     if description:
         event["description"] = description
+    if color:
+        color_id = COLORS.get(color.lower().strip())
+        if color_id:
+            event["colorId"] = color_id
 
     created = service.events().insert(calendarId="primary", body=event).execute()
     return f"אירוע נוצר: {created.get('summary')} ב-{start_time}"
